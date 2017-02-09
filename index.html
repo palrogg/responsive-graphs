@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Créateur de graphiques</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet" />
+    <link href="css/c3.min.css" rel="stylesheet" type="text/css" />
+    <link href="css/bootstrap-colorpicker.min.css" rel="stylesheet" type="text/css" />
+    <style>
+    textarea.form-control{
+      height: 400px;
+    }
+    #chartSubtitle{
+      font-weight: 600;
+      font-size: 1.2em;
+    }
+    svg{
+      width: 100%;
+      height: 200px;
+    }
+    .colordiv{
+      float: left;
+      margin: 0 5px 2% 0;
+    }
+    /*.c3-tooltip-container{
+      display: block !important;
+    }
+    .c3-tooltip {
+      display: block !important;
+      border-collapse:collapse;
+      border-spacing:0;
+      background-color:#fff;
+      empty-cells:show;
+      -webkit-box-shadow: 7px 7px 12px -9px rgb(119,119,119);
+         -moz-box-shadow: 7px 7px 12px -9px rgb(119,119,119);
+              box-shadow: 7px 7px 12px -9px rgb(119,119,119);
+      opacity: 0.9;
+    }
+    .c3-xgrid-focus{
+    		display: none
+  	}*/
+    </style>
+  </head>
+  <body>
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-md-10 col-md-offset-1">
+          <h1>Créer un graphique <span style="font-family: fantasy">0.2 bêta</span></h1>
+
+          <form>
+            <input type="hidden" id="version" value="0.2" />
+
+            <div class="form-group">
+              <label for="dataArea">Données copiées et collées depuis Google Docs ou Excel</label>
+              <div id="pie-alert" class="alert alert-warning" style="display: none;">
+                <strong>Fromage</strong> Seule la première ligne de données est prise en compte.
+              </div>
+
+              <textarea class="form-control" id="dataArea">
+Annee	Inscrits	Participants
+2000	18053	12934
+2001	19632	13417
+2002	23899	13707
+2003	21714	14079
+2004	21527	15114
+2005	23420	19521
+2006	23634	20231
+2007	27402	22768
+2008	26880	21783
+2009	27272	3401
+2010	28615	4926
+2011	28233	6459
+2012	33717	7067
+2013	33695	8556
+2014	36694	9181
+2015	42456	10203
+2016	45322	11141</textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="chartType">Type de graphique</label>
+              <select class="form-control" id="chartType">
+                <option value="line">ligne</option>
+                <!--<option value="spline">ligne courbe</option>
+                <option value="step">escalier</option>-->
+                <option value="area">aire</option>
+                <!--<option value="area-spline">aire courbe</option>
+                <option value="area-step">aire escalier</option>-->
+                <option value="bar">barres</option>
+                <option value="scatter">points</option>
+                <option value="pie">fromage</option>
+                <!--<option value="donut">donut</option>-->
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="hasTimes">La première colonne indique des années</label>
+              <input type="checkbox" class="form-control" id="hasTimes" checked>
+            </div>
+
+            <div class="form-group">
+              <label for="isStacked">Graphique empilé</label>
+              <input type="checkbox" class="form-control" id="isStacked">
+            </div>
+
+            <div class="form-group">
+              <label for="title">Titre</label>
+              <input type="text" class="form-control" id="title" value="Titre">
+            </div>
+
+            <div class="form-group">
+              <label for="subtitle">Sous-titre</label>
+              <input type="text" class="form-control" id="subtitle" value="Sous-titre">
+            </div>
+
+            <div class="form-group">
+              <label for="source">Source</label>
+              <input type="text" class="form-control" id="source" value="Source: TDG">
+            </div>
+
+
+            <div class="form-group">
+              <label for="xAxisLegend">Légende axe des x</label>
+              <input type="text" class="form-control" id="xAxisLegend">
+            </div>
+
+            <div class="form-group">
+              <label for="yAxisLegend">Légende axe des y</label>
+              <input type="text" class="form-control" id="yAxisLegend">
+            </div>
+
+            <div id="colorpicker" class="input-group colorpicker-component">
+            </div>
+
+
+            <div class="form-group">
+              <button id="dessiner" class="btn btn-primary">Actualiser</button>
+              <button id="generer" class="btn btn-primary">Générer un URL</button>
+            </div>
+
+          </form>
+        </div>
+
+      <div id="viz" class="col-md-10 col-md-offset-1">
+        <h1 id="chartTitle"></h1>
+        <p id="chartSubtitle"></p>
+        <div id="chart-tip" class="alert alert-info" style="padding: .5%;">
+          <strong></strong> <span>Survoler ou toucher un point pour lire les détails.</span>
+        </div>
+        <svg id="chart"></svg>
+        <div id="chartSource" class="text-right"></div>
+      </div>
+
+    </div>
+  </div>
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.js"></script>
+
+<script src="js/c3.min.js"></script>
+<script src="js/bootstrap-colorpicker.min.js"></script>
+
+<script>
+var columnNames, displayedColumnNames, dataRows, timeColumn, colorPickerContents,
+defaultColors = ['#c0001d','#08498c','#4aa5d9','#ef9f00','#ff7f00','#ffff33'];
+//defaultColors = ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33'];
+
+function getColorPattern(defaultColors){
+  var colorPattern = $('input[name*="color[]"]').map(function(){return $(this).val();}).get();
+  if (colorPattern.length < 1) {
+    return defaultColors;
+  }else{
+    return colorPattern;
+  }
+}
+
+function drawGraph(){
+  columnNames = [];
+  dataRows = [];
+  timeColumn = '';
+
+
+
+  var rawData = d3.tsv.parse($('#dataArea').val(), function(d){
+    if (columnNames.length == 0){
+      columnNames = Object.keys(d);
+      displayedColumnNames = columnNames.slice(0);
+      if($("#hasTimes").is(':checked')){
+        timeColumn = columnNames[0];
+        displayedColumnNames.shift();
+      }
+      dataRows.push(columnNames);
+    }
+    var rowList = [];
+    for (col of columnNames){
+      d[col] = d[col].replace(/ /g, '').replace(/ /g, '').replace(/'/g,'').replace(/’/g,'');
+      rowList.push(+d[col]);
+    }
+    dataRows.push(rowList);
+    return d;
+  });
+
+  dataRows = dataRows.concat(rawData);
+
+  var stackedColumns = [];
+  if($("#isStacked").is(':checked')){
+    stackedColumns = displayedColumnNames;
+  }
+
+  var chart = c3.generate({
+    bindto: '#chart',
+    data: {
+      x: timeColumn,
+      type: $('#chartType').val(),
+      rows: dataRows,
+      groups: [
+            stackedColumns
+          ]
+    },
+    tooltip: {
+        format: {
+            title: function (d) { $('#chart-tip strong').html(d); $('#chart-tip span').html(''); return; },
+            value: function (value, ratio, id) {
+                $('#chart-tip span').html($('#chart-tip span').html() + ' | ' + id + ': ' + value);
+                $('#chart-tip').show();
+                return;
+            }
+        }
+    },
+    axis:{
+      x:{
+        padding: {left:1, right: 1},
+        label: $('#xAxisLegend').val(),
+      },
+      y:{
+        padding: {top: 10, bottom: 0},
+        min: 0,
+        label: {
+          text: $('#yAxisLegend').val(),
+          position: 'outer-middle'
+        }
+      }
+    },
+    color:{
+      pattern: getColorPattern(defaultColors)
+    }
+  });
+
+  $('#chartTitle').html($('#title').val());
+  $('#chartSubtitle').html($('#subtitle').val());
+  $('#chartSource').html($('#source').val());
+}
+
+drawGraph();
+
+$('#dessiner').on('click', function(){
+  drawGraph();
+  return false;
+});
+
+
+$('#generer').on('click', function(){
+  drawGraph();
+
+  $.createParam = function(name){
+    return name.substring(1) + '=' + $(name).val() + '&';
+  }
+
+  var url = 'graphique.html?' + $.createParam('#chartType') + $.createParam('#hasTimes') + $.createParam('#title') + $.createParam('#subtitle') + $.createParam('#version') + $.createParam('#source');
+  url += 'colorPattern=' + JSON.stringify(getColorPattern(defaultColors)) + '&';
+  url += $.createParam('#xAxisLegend') + $.createParam('#yAxisLegend') + 'data=' + JSON.stringify(dataRows);
+
+  window.open(encodeURI(url));
+
+  return false;
+});
+
+$('#chartType,#hasTimes').on('change', function(){
+  if($(this).val() == 'pie'){
+    $('#pie-alert').show();
+  }else{
+    $('#pie-alert').hide();
+  }
+  drawGraph();
+});
+$('#dataArea').on('keyup', function(){
+  drawGraph();
+  updateColors();
+});
+
+$.urlParam = function(name){
+    var results = new RegExp('[\?&]' + name + '=([^&]*)').exec(window.location.href);
+    if (results==null){
+       return null;
+    }
+    else{
+       return decodeURI(results[1]) || '';
+    }
+}
+
+if($.urlParam('data')){
+  var rows = JSON.parse($.urlParam('data'));
+  var dataText = '';
+  for(i in rows){
+    if(rows[i].length > 0) dataText += rows[i].join("	") + "\n";
+  }
+  $('#dataArea').val(dataText);
+
+
+  $('#title').val($.urlParam('title'));
+  $('#subtitle').val($.urlParam('subtitle'));
+  $('#source').val($.urlParam('source'));
+  $('#chartType').val($.urlParam('chartType'));
+  $('#xAxisLegend').val($.urlParam('xAxisLegend'));
+  $('#yAxisLegend').val($.urlParam('yAxisLegend'));
+  $('#hasTimes').val($.urlParam('hasTimes'));
+  if($.urlParam('hasTimes') != 'on'){
+    $('#hasTimes').prop('checked', false);
+  }
+  defaultColors = JSON.parse($.urlParam('colorPattern'));
+  drawGraph();
+}
+
+// Color Picker
+function updateColors(){
+  var currentColors = getColorPattern([]);
+  colorPickerContents = '';
+  for(i in displayedColumnNames){
+    colorPickerContents += '<div class="colordiv">' + displayedColumnNames[i] + '<div id="color-' + displayedColumnNames[i] + '" class="input-group colorpicker-component"><input name="color[]" type="text" value="#00AABB" class="form-control"/><span class="input-group-addon"><i></i></span></div></div>';
+  }
+  $('#colorpicker').html('<label>Couleurs</label><br/>' + colorPickerContents);
+
+  for(i in displayedColumnNames){
+    // check if a color was already defined
+    if(currentColors.length > i){
+      $('#color-'+displayedColumnNames[i]).colorpicker({'color':currentColors[i]});
+    }else{
+      $('#color-'+displayedColumnNames[i]).colorpicker({'color':defaultColors[i]});
+    }
+  }
+}
+
+updateColors();
+
+// Enable the "Editer" link in graphique.html
+localStorage.setItem('editLink', 'true');
+
+
+
+</script>
+
+</body>
+</html>

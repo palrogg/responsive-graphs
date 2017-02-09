@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Graphique</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/c3.min.css" rel="stylesheet" type="text/css">
+    <style>
+    textarea.form-control{
+      height: 100px !important;
+    }
+    #chartSubtitle{
+      font-weight: 600;
+      font-size: 1.2em;
+    }
+
+    svg{
+      width: 100%;
+      height: 200px;
+    }
+    c3-tooltip {
+  border-collapse:collapse;
+  border-spacing:0;
+  background-color:#fff;
+  empty-cells:show;
+  -webkit-box-shadow: 7px 7px 12px -9px rgb(119,119,119);
+     -moz-box-shadow: 7px 7px 12px -9px rgb(119,119,119);
+          box-shadow: 7px 7px 12px -9px rgb(119,119,119);
+  opacity: 0.9;
+}
+
+    </style>
+  </head>
+  <body>
+    <div class="container-fluid">
+      <div class="row">
+        <div id="viz" class="col-md-10 col-md-offset-1">
+          <h3 id="chartTitle"></h3>
+          <p id="chartSubtitle"></p>
+          <div id="chart-tip" class="alert alert-info" style="padding: .5%;">
+            <strong></strong> <span>Survoler ou toucher un point pour lire les détails.</span>
+          </div>
+          <svg id="chart"></svg>
+          <div id="chartSource" class="text-right"></div>
+        </div>
+      </div>
+    </div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.21.0/d3-legend.min.js"></script>
+<script src="http://files.newsnetz.ch/scripts/dimension_watcher.js"></script>
+<script>
+    DimensionWatcher.enableParentNotification(
+      function() {
+        return $('body').width();
+      },
+      function() {
+        return 400;
+      }
+    );
+</script>
+
+
+<script src="js/c3.min.js"></script>
+
+<script>
+
+$.urlParam = function(name){
+    var results = new RegExp('[\?&]' + name + '=([^&]*)').exec(window.location.href);
+    if (results==null){
+       return null;
+    }
+    else{
+      return decodeURI(results[1]) || '';
+    }
+}
+
+function drawGraph(){
+  var columnNames = [],
+   dataRows = [],
+   timeColumn = '',
+   colorPattern;
+
+  dataRows = JSON.parse($.urlParam('data'));
+  if($.urlParam('hasTimes') == 'on'){
+    timeColumn = dataRows[0][0];
+  }
+  colorPattern = JSON.parse($.urlParam('colorPattern'));
+  console.log(colorPattern);
+
+  var chart = c3.generate({
+      bindto: '#chart',
+      data: {
+        x: timeColumn,
+        type: $.urlParam('chartType'),
+        rows: dataRows,
+      },
+      tooltip: {
+          format: {
+              title: function (d) { $('#chart-tip strong').html(d); $('#chart-tip span').html(''); return; },
+              value: function (value, ratio, id) {
+                  $('#chart-tip span').html($('#chart-tip span').html() + ' | ' + id + ': ' + value);
+                  $('#chart-tip').show();
+                  return;
+              }
+          }
+      },
+      axis:{
+        x:{
+          padding: {left:1, right: 1},
+          label: $.urlParam('xAxisLegend'),
+        },
+        y:{
+          padding: {top: 10, bottom: 0},
+          min: 0,
+          label: {
+            text: $.urlParam('yAxisLegend'),
+            position: 'outer-middle'
+          }
+        }
+      },
+      color:{
+        pattern: colorPattern
+      }
+    });
+
+  $('#chartTitle').html($.urlParam('title'));
+  $('#chartSubtitle').html($.urlParam('subtitle'));
+  $('#chartSource').html($.urlParam('source'));
+}
+
+drawGraph();
+
+$('#dessiner').on('click', function(){
+  drawGraph();
+  return false;
+})
+$('#typeSelect').on('change', function(){
+  drawGraph();
+});
+$('#dataArea').on('keyup', function(){
+  drawGraph();
+});
+
+$('#embedArea').focus().select()
+
+</script>
+
+</body>
+</html>
